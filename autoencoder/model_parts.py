@@ -24,8 +24,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR TH
 import numpy as np
 import torch as pt
 import torch.nn as nn
-from torch.nn.functional import relu, sigmoid, tanh
-from torch.nn.modules.distance import CosineSimilarity
+from torch.nn.functional import relu
 
 
 def identity(x):

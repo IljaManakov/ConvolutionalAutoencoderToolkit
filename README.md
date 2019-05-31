@@ -13,6 +13,11 @@ The implementation is such that the architecture of the autoencoder can be alter
 Some usefull wrappers and custom classes, such as ResidualBlock or GeneralConvolution, can be found in model_parts.py.
 The file models.py is where the actual autoencoder classes are. It contains one base class as well as two extension for 2d and 3d data.
 
+# Installation
+The latest stable version can be obtained using `pip install autoencoder`.
+
+Otherwise, you can download and use the files directly in your projects.
+
 # Usage
 The ConvAE base class expects parameters that specify the overall architecture (see documentation) and one function for the downsampling layer, upsampling layer and residual block.
 Conv2dAE and Conv3dAE on the other hand provide an interface to easily create the aforementioned functions from parameters and create the autoencoder from there.
