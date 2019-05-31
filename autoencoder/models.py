@@ -60,13 +60,14 @@ class ConvAE(nn.Module):
         :param n_layers: number of down- and upsampling layers in the encoder and decoder respectively
         :param n_residual: tuple that controls the residual blocks in the network. The first entry specifies the amount
         of residual blocks in between down- or upsampling layers. The second specifies the amount of convolutions in
-        each block.
+        each block. Alternatively, two tuples can be passed. The first will be used for the encoder and the second for
+        the decoder.
         :param channel_factor: number of channels of the tensor after the inital convolution.
         :param max_channels: maximum amount of channels that should be present in the network
         :param input_channels: number of channels in the input tensor
         :param channels: dict with keys 'encoder' and 'decoder' specifying the number of layers (length of the list)
         and their channel count as a list of int
-        :param down_conv: function for the convolution in downsampling layers and residual blocks
+        :param down_conv: function for the convolution in downsampling layers
         :param up_conv: function for the convolution in upsampling layers
         :param res_block: function that is called for each residual block
         """
@@ -74,17 +75,19 @@ class ConvAE(nn.Module):
 
         self.encoder = []
         self.decoder = []
-        self.encoder_channels, self.decoder_channels = self.parse_channels(channels, n_layers, channel_factor,
-                                                                           max_channels)
+        self.residuals = self._parse_residuals(n_residual)
+        self.input_channels = input_channels
+        self.channels = self._parse_channels(channels, n_layers, channel_factor, max_channels)
 
         # define building blocks
         self.down_conv = down_conv
         self.up_conv = up_conv
         self.res_block = res_block
 
-        self.build_autoencoder(input_channels, n_residual)
+        self._build()
 
-    def parse_channels(self, channels, n_layers, channel_factor, max_channels):
+    @staticmethod
+    def _parse_channels(channels, n_layers, channel_factor, max_channels):
         """
         method for constructing the basic architecture of the network and consolidating the two methods of construction
         mentioned in init
@@ -99,14 +102,14 @@ class ConvAE(nn.Module):
 
             encoder_channels = channels.get('encoder', None)
             if encoder_channels is None:
-                encoder_channels = self.calculate_channels(n_layers, channel_factor, max_channels)
+                encoder_channels = ConvAE.calculate_channels(n_layers, channel_factor, max_channels)
 
             decoder_channels = channels.get('decoder', None)
             if decoder_channels is None:
                 n_layers = len(encoder_channels)
                 max_channels = encoder_channels[-1]
                 channel_factor = max(max_channels // 2 ** (n_layers - 1), 1)
-                decoder_channels = self.calculate_channels(n_layers, channel_factor, max_channels)
+                decoder_channels = ConvAE.calculate_channels(n_layers, channel_factor, max_channels)
                 decoder_channels.reverse()
 
         elif isinstance(channels, Sequence):
@@ -117,11 +120,29 @@ class ConvAE(nn.Module):
 
         else:
 
-            encoder_channels = self.calculate_channels(n_layers, channel_factor, max_channels)
+            encoder_channels = ConvAE.calculate_channels(n_layers, channel_factor, max_channels)
             decoder_channels = encoder_channels.copy()
             decoder_channels.reverse()
 
         return encoder_channels, decoder_channels
+
+    @staticmethod
+    def _parse_residuals(n_residual):
+        """
+        parse the n_residual argument. If only one tuple is given, residual blocks in the encoder and decoder
+        will be symmetric.
+        :param n_residual: either a single tuple or sequence of two tuples. the tuples specify the number of residual
+        blocks and the number of convolutions per block. If two tuples are passed, the first will be used for the
+        encoder and the second for the decoder
+        :return: specification of residual blocks for both encoder and decocer
+        """
+
+        assert isinstance(n_residual, Sequence), 'n_residual must be a tuple of the form (n_blocks, n_convs_per_block)'
+
+        if not isinstance(n_residual[0], Sequence):
+            n_residual = (n_residual, n_residual)
+
+        return n_residual
 
     @staticmethod
     def calculate_channels(n_layers, channel_factor, max_channels):
@@ -138,28 +159,27 @@ class ConvAE(nn.Module):
 
         return list(channels)
 
-    def build_autoencoder(self, input_channels, n_residual):
+    def _build(self):
         """
         method that actually builds the network
-        :param input_channels: number of channels in the input to the network
-        :param n_residual: tuple that controls the residual blocks in the network. The first entry specifies the amount
-        of residual blocks in between down- or upsampling layers. The second specifies the amount of convolutions in
-        each block.
         :return: None
         """
         # build encoder
 
+        encoder_residuals, decoder_residuals = self.residuals
+        encoder_channels, decoder_channels = self.channels
+
         # initial convolution
         conv = partial(self.down_conv, stride=(1, 1))
-        self.encoder.append(conv(input_channels, self.encoder_channels[0]))
+        self.encoder.append(conv(self.input_channels, encoder_channels[0]))
         self.add_module('initial_conv', self.encoder[-1])
 
-        channels = zip(self.encoder_channels[:-1], self.encoder_channels[1:])
+        channels = zip(encoder_channels[:-1], encoder_channels[1:])
         for depth, (current_channels, out_channels) in enumerate(channels):
 
             # res blocks
-            for res_index in range(n_residual[0]):
-                self.encoder.append(self.res_block(channels=current_channels))
+            for res_index in range(encoder_residuals[0]):
+                self.encoder.append(self.res_block(channels=current_channels, n_convolutions=encoder_residuals[1]))
                 self.add_module('r-block{}-{}'.format(depth + 1, res_index + 1), self.encoder[-1])
 
             # down-sampling convolution
@@ -169,8 +189,8 @@ class ConvAE(nn.Module):
         # build decoder
 
         # invert channel order
-        channels = zip(self.decoder_channels[:-1], self.decoder_channels[1:])
-        n_layers = len(self.decoder_channels)
+        channels = zip(decoder_channels[:-1], decoder_channels[1:])
+        n_layers = len(decoder_channels)
         for depth, (current_channels, out_channels) in enumerate(channels):
 
             # up-sampling convolution
@@ -178,12 +198,12 @@ class ConvAE(nn.Module):
             self.add_module('dconv{}'.format(n_layers - depth - 1), self.decoder[-1])
 
             # res blocks
-            for res_index in range(n_residual[0]):
-                self.decoder.append(self.res_block(out_channels))
+            for res_index in range(decoder_residuals[0]):
+                self.decoder.append(self.res_block(channels=out_channels, n_convolutions=decoder_residuals[1]))
                 self.add_module('dr-block{}-{}'.format(depth + 1, res_index + 1), self.decoder[-1])
 
         # output convolution
-        self.decoder.append(conv(out_channels, input_channels))
+        self.decoder.append(conv(out_channels, self.input_channels))
         self.add_module('output_conv', self.decoder[-1])
 
     def _forward(self, x, layers=None):
@@ -258,7 +278,8 @@ class Conv2dAE(ConvAE):
         :param stride: stride of the down- and upsampling layers
         :param n_residual: tuple that controls the residual blocks in the network. The first entry specifies the amount
         of residual blocks in between down- or upsampling layers. The second specifies the amount of convolutions in
-        each block.
+        each block. Alternatively, two tuples can be passed. The first will be used for the encoder and the second for
+        the decoder.
         :param max_channels: maximum amount of channels that should be present in the network
         :param input_channels: number of channels in the input tensor
         :param affine: boolean indicating whether the normalization uses bias or not
@@ -272,7 +293,7 @@ class Conv2dAE(ConvAE):
         """
 
         # define building blocks
-        res_block = partial(parts.ResBlock2d, n_convolutions=n_residual[1], kernel_size=kernel_size,
+        res_block = partial(parts.ResBlock2d, kernel_size=kernel_size,
                             convolution=down_conv, norm=norm, activation=activation,
                             affine=affine, padding=padding, **kwargs)
 
@@ -287,7 +308,6 @@ class Conv2dAE(ConvAE):
         #                          activation=activation, padding=None, norm=norm,
         #                          convolution=partial(pt.nn.ConvTranspose2d, padding=1),
         #                          affine=affine, **kwargs)
-
 
         super().__init__(n_layers, n_residual, channel_factor, max_channels, input_channels, channels,
                          down_conv, up_conv, res_block)
@@ -328,7 +348,8 @@ class Conv3dAE(ConvAE):
         :param stride: stride of the down- and upsampling layers
         :param n_residual: tuple that controls the residual blocks in the network. The first entry specifies the amount
         of residual blocks in between down- or upsampling layers. The second specifies the amount of convolutions in
-        each block.
+        each block. Alternatively, two tuples can be passed. The first will be used for the encoder and the second for
+        the decoder.
         :param max_channels: maximum amount of channels that should be present in the network
         :param input_channels: number of channels in the input tensor
         :param affine: boolean indicating whether the normalization uses bias or not
