@@ -176,9 +176,12 @@ class ConvResize(nn.Module):
         :param kwargs: additional keyword arguments for the convolution function
         """
         super().__init__()
+        factor, mode = upsampling
+        if pt.__version__ > '1.0.1':
+            factor = factor[0]
         self.convolution = GeneralConvolution(current_channels, out_channels, kernel_size, stride,
                                               padding, norm, activation, convolution, affine=affine, **kwargs)
-        self.upsampling = nn.Upsample(scale_factor=upsampling[0], mode=upsampling[1])
+        self.upsampling = nn.Upsample(scale_factor=factor, mode=mode)
 
     def forward(self, x):
         out = x
