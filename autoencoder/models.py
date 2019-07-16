@@ -245,7 +245,7 @@ class ConvAE(nn.Module):
         return self._forward(x, self.decoder)
 
 
-class Conv2dAE(ConvAE):
+class ConvAE2d(ConvAE):
     """
     Class representing a convolutional autoencoder for 2d inputs. The architecture of the AE is highly customizable with
     regards to the number of layers, kernel size, stride in downsampling, functions for convolution, padding and
@@ -313,7 +313,7 @@ class Conv2dAE(ConvAE):
                          down_conv, up_conv, res_block)
 
 
-class Conv3dAE(ConvAE):
+class ConvAE3d(ConvAE):
 
     """
     Class representing a convolutional autoencoder for 2d inputs. The architecture of the AE is highly customizable with
