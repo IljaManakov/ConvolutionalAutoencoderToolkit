@@ -69,7 +69,7 @@ class GeneralConvolution(nn.Module):
         self.convolution = convolution(current_channels, out_channels, kernel_size, stride, **kwargs)
 
         self.padding = padding
-        self.norm = norm(out_channels, affine=affine)
+        self.norm = norm(out_channels, affine=affine) if norm else norm
         self.activation = activation
 
     def forward(self, x):
@@ -179,9 +179,9 @@ class ConvResize(nn.Module):
         factor, mode = upsampling
         if pt.__version__ > '1.0.1':
             factor = factor[0]
+        self.upsampling = nn.Upsample(scale_factor=factor, mode=mode)
         self.convolution = GeneralConvolution(current_channels, out_channels, kernel_size, stride,
                                               padding, norm, activation, convolution, affine=affine, **kwargs)
-        self.upsampling = nn.Upsample(scale_factor=factor, mode=mode)
 
     def forward(self, x):
         out = x
