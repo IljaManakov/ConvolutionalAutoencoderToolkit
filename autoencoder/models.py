@@ -256,7 +256,7 @@ class ConvAE2d(ConvAE):
     def __init__(self, channel_factor=None, n_layers=None, activation=relu, kernel_size=(4, 4), stride=(2, 2),
                  n_residual=(0, 0), max_channels=None, input_channels=1, affine=False, channels=None,
                  padding=pt.nn.ReflectionPad2d, norm=pt.nn.InstanceNorm2d,
-                 down_conv=pt.nn.Conv2d, up_conv=parts.ConvResize2d, **kwargs):
+                 down_conv=pt.nn.Conv2d, up_conv=parts.ConvResize2d, final_norm=True, **kwargs):
         """
         the architecture of the AE is dynamically build based on the arguments passed to this init method. It is
         important to note that there are two mechanisms for defining the number of layers and
@@ -312,7 +312,7 @@ class ConvAE2d(ConvAE):
         #                          affine=affine, **kwargs)
 
         super().__init__(n_layers, n_residual, channel_factor, max_channels, input_channels, channels,
-                         down_conv, up_conv, res_block)
+                         down_conv, up_conv, res_block, final_norm)
 
 
 class ConvAE3d(ConvAE):
@@ -326,7 +326,7 @@ class ConvAE3d(ConvAE):
     def __init__(self, channel_factor=None, n_layers=None, activation=relu, kernel_size=(9, 3, 3), stride=(1, 2, 2),
                  n_residual=(0, 0), max_channels=None, input_channels=1, affine=False, channels=None,
                  padding=pt.nn.ReplicationPad3d, norm=pt.nn.InstanceNorm3d,
-                 down_conv=pt.nn.Conv3d, up_conv=parts.ConvResize3d, **kwargs):
+                 down_conv=pt.nn.Conv3d, up_conv=parts.ConvResize3d, final_norm=True, **kwargs):
         """
         the architecture of the AE is dynamically build based on the arguments passed to this init method. It is
         important to note that there are two mechanisms for defining the number of layers and
@@ -376,6 +376,6 @@ class ConvAE3d(ConvAE):
                             affine=affine, padding=padding, **kwargs)
 
         super().__init__(n_layers, n_residual, channel_factor, max_channels, input_channels, channels,
-                         down_conv, up_conv, res_block)
+                         down_conv, up_conv, res_block, final_norm)
 
 
