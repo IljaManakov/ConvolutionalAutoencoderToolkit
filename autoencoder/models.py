@@ -39,7 +39,7 @@ class ConvAE(nn.Module):
     """
 
     def __init__(self, n_layers, n_residual, channel_factor, max_channels, input_channels, channels,
-                 down_conv, up_conv, res_block):
+                 down_conv, up_conv, res_block, final_norm=True):
         """
         the architecture of the AE is dynamically build based on the arguments passed to this init method. It is
         important to note that there are two mechanisms for defining the number of layers and
@@ -83,8 +83,8 @@ class ConvAE(nn.Module):
         self.down_conv = down_conv
         self.up_conv = up_conv
         self.res_block = res_block
-
-        self._build()
+        
+        self._build(final_norm)
 
     @staticmethod
     def _parse_channels(channels, n_layers, channel_factor, max_channels):
@@ -159,7 +159,7 @@ class ConvAE(nn.Module):
 
         return list(channels)
 
-    def _build(self):
+    def _build(self, final_norm):
         """
         method that actually builds the network
         :return: None
@@ -205,6 +205,8 @@ class ConvAE(nn.Module):
         # output convolution
         self.decoder.append(conv(out_channels, self.input_channels))
         self.add_module('output_conv', self.decoder[-1])
+        if not final_norm: 
+            self.output_conv.norm = None
 
     def _forward(self, x, layers=None):
         """

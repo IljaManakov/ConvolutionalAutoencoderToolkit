@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="autoencoder",
-    version="0.0.4",
+    version="0.0.6",
     author="Ilja Manakov",
     author_email="ilja.manakov@gmx.de",
     description="A toolkit for flexibly building convolutional autoencoders in pytorch",
