@@ -21,7 +21,7 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR TH
 
 """
 
-import model_parts as parts
+from autoencoder import model_parts as parts
 import numpy as np
 import torch as pt
 import torch.nn as nn
