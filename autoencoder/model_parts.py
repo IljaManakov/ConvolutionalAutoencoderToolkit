@@ -287,3 +287,51 @@ class Flatten(nn.Module):
         return x.view(-1, np.prod(x.shape[1:]))
 
 
+class Reshape(nn.Module):
+
+    def __init__(self, shape):
+        super(Reshape, self).__init__()
+        self.shape = shape
+
+    def forward(self, x):
+        batch = x.shape[0]
+        return x.view(batch, *self.shape)
+
+
+class DenseVAEBottleneck(object):
+
+    def __init__(self, hidden_dim):
+
+        self.hidden_dim = hidden_dim
+
+    def __call__(self, model, features, *args, **kwargs):
+
+        shape = features.shape
+        mu = pt.nn.Sequential(Flatten(), pt.nn.Linear(np.prod(shape[1:]), self.hidden_dim))
+        sigma = pt.nn.Sequential(Flatten(), pt.nn.Linear(np.prod(shape[1:]), self.hidden_dim))
+        reshape = pt.nn.Sequential(pt.nn.Linear(self.hidden_dim, np.prod(shape[1:])), Reshape(shape[1:]))
+
+        # register modules to ensure parameter updates
+        template = next(iter(model.parameters()))
+        for module, name in zip([mu, sigma, reshape], ['mu', 'sigma', 'reshape']):
+            module.to(template)
+            model.add_module(name, module)
+
+
+class VAELoss(nn.Module):
+
+    def __init__(self, beta=1, reconstruction_loss=pt.nn.MSELoss()):
+
+        super(VAELoss, self).__init__()
+        self.beta = beta
+        self.reconstruction_loss = reconstruction_loss
+
+    def forward(self, prediction, ground_truth):
+
+        assert len(prediction) == 3, 'prediction argument must be sequence of reconstruction, mu and sigma'
+        reconstruction, mu, sigma = prediction
+        reconstruction_loss = self.reconstruction_loss(reconstruction, ground_truth)
+        kl_divergence = -0.5 * pt.sum(1 + sigma - mu.pow(2) - sigma.exp())
+        loss = reconstruction_loss + self.beta*kl_divergence
+
+        return loss
