@@ -2,6 +2,6 @@
 
 python setup.py sdist bdist_wheel
 python -m twine upload dist/*
-rm -r /home/ilja/Documents/Promotion/Project_Helpers/autoencoders/dist
-rm -r /home/ilja/Documents/Promotion/Project_Helpers/autoencoders/build
-rm -r /home/ilja/Documents/Promotion/Project_Helpers/autoencoders/autoencoder.egg-info
+rm -r /home/ilja/projects/public/ConvolutionalAutoencoderToolkit/dist
+rm -r /home/ilja/projects/public/ConvolutionalAutoencoderToolkit/build
+rm -r /home/ilja/projects/public/ConvolutionalAutoencoderToolkit/autoencoder.egg-info
